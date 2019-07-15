@@ -1,0 +1,16 @@
+[serverConfig]
+
+    ServerPort = "8000" #Required to input as string
+    ServerAddr = "192.168.1.7" #Put in the IP address you want to bind to as string
+    LogLevel = "Debug" # Options = Debug, Info, Warn, Error, Fatal, Panic
+    LogOutput = "file" #Options = file, stdout #file will print it to logs/server.log
+
+
+[logging]
+
+    Level = "debug" #debug, info, warn, error, fatal
+    Encoding = "console" #JSON, console
+    OutputPaths = ["stdout", "console"]
+    ErrorOutPutPaths = ["stderr"]
+
+   
