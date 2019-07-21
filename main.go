@@ -8,7 +8,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"nanomsg.org/go/mangos/v2"
-	"nanomsg.org/go/mangos/v2/protocol/sub"
+	"nanomsg.org/go/mangos/v2/protocol/pair"
 
 	// register transports
 	_ "nanomsg.org/go/mangos/v2/transport/tcp" //TODO change to /all to register all transports
@@ -27,27 +27,36 @@ var (
 	Logger zerolog.Logger
 )
 
-func main() {
-	clientSettings, Logger := config.SetupClient() //setup logging and all server settings
-	Logger.Info().Msg("Server and Logger configuration complete")
-	sock, err = sub.NewSocket()
+func connectServer(clientSettings config.ClientConfig, Logger zerolog.Logger, serverSendCh chan string) {
+	sock, err = pair.NewSocket()
 	if err != nil {
-		Logger.Fatal().Err(err).Msg("Can't get new subscribe socket")
+		Logger.Fatal().Err(err).Msg("Can't setup new pair socket")
 	}
 	err = sock.Dial(clientSettings.DialAddr)
 	if err != nil {
-		Logger.Fatal().Err(err).Str("Connection String", clientSettings.DialAddr).Msg("Failed to Dial Socket address")
+		Logger.Fatal().Err(err).Str("Connection String", clientSettings.DialAddr).Msg("Failed to Dial Socket address of server")
 	}
 	Logger.Info().Str("Address", clientSettings.DialAddr).Msg("Dial to server opened with no errors")
-	err = sock.SetOption(mangos.OptionSubscribe, []byte(""))
+
+	err = sock.Send([]byte("Client Connecting to server"))
 	if err != nil {
-		die("cannot subscribe: %s", err.Error())
+		Logger.Fatal().Err(err).Str("Connection String", clientSettings.DialAddr).Msg("Failed to send message to server")
 	}
-	for {
-		if msg, err = sock.Recv(); err != nil {
-			die("Cannot recv: %s", err.Error())
-		}
-		fmt.Printf("CLIENT(%s): RECEIVED %s\n", "client1", string(msg))
+	Logger.Info().Str("Address", clientSettings.DialAddr).Msg("Message Sent")
+	msg, err = sock.Recv()
+	if err != nil {
+		Logger.Error().Err(err).Msg("Agent failed to receive pair message from Server")
+	} else {
+		Logger.Debug().Str("Message Body", string(msg)).Msg("Message Received from Server")
+		return
 	}
+
+}
+
+func main() {
+	clientSettings, Logger := config.SetupClient() //setup logging and all server settings
+	Logger.Info().Msg("Server and Logger configuration complete")
+	serverSendCh := make(chan string)
+	connectServer(clientSettings, Logger, serverSendCh)
 
 }
