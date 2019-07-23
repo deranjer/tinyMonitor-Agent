@@ -1,10 +1,16 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/deranjer/tinyMonitor-Agent/config"
+	"github.com/deranjer/tinyMonitor/messaging"
+	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/net"
 
 	"github.com/rs/zerolog"
 	"nanomsg.org/go/mangos/v2"
@@ -27,7 +33,29 @@ var (
 	Logger zerolog.Logger
 )
 
+func guessDefaultConnection(interfaces []net.InterfaceStat) net.InterfaceAddr { //TODO actually fix this
+	var netGuess net.InterfaceAddr
+	for _, netInterface := range interfaces {
+		if netInterface.Name == "lo" {
+			continue
+		} else if netInterface.Name == "ens18" {
+			netGuess = netInterface.Addrs[0]
+		}
+
+	}
+	return netGuess
+}
+
 func connectServer(clientSettings config.ClientConfig, Logger zerolog.Logger, serverSendCh chan string) {
+	systemInfo, err := host.Info()
+	if err != nil {
+		Logger.Fatal().Err(err).Msg("Unable to get information from host!")
+	}
+	ipAddr, err := net.Interfaces()
+	if err != nil {
+		Logger.Fatal().Err(err).Msg("Unable to get network information from host!")
+	}
+	ipAddrGuess := guessDefaultConnection(ipAddr)
 	sock, err = pair.NewSocket()
 	if err != nil {
 		Logger.Fatal().Err(err).Msg("Can't setup new pair socket")
@@ -37,8 +65,17 @@ func connectServer(clientSettings config.ClientConfig, Logger zerolog.Logger, se
 		Logger.Fatal().Err(err).Str("Connection String", clientSettings.DialAddr).Msg("Failed to Dial Socket address of server")
 	}
 	Logger.Info().Str("Address", clientSettings.DialAddr).Msg("Dial to server opened with no errors")
+	msgStruct := &messaging.BaseMessage{
+		MessageType: "RegisterAgent",
+		messaging.RegisterAgent{
+			AgentHostName: systemInfo.Hostname, 
+			AgentIPAddr: ipAddrGuess.Addr, 
+			AgentJoinDate: time.Now()
+		}
 
-	err = sock.Send([]byte("Client Connecting to server"))
+	}
+	b := messaging.MessageEncode(msgStruct)
+	err = sock.Send(b.Bytes())
 	if err != nil {
 		Logger.Fatal().Err(err).Str("Connection String", clientSettings.DialAddr).Msg("Failed to send message to server")
 	}
