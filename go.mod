@@ -12,3 +12,5 @@ require (
 	github.com/spf13/viper v1.4.0
 	nanomsg.org/go/mangos/v2 v2.0.2
 )
+
+replace github.com/deranjer/tinyMonitor => ../tinyMonitor

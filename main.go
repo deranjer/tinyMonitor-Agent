@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"os"
 	"time"
@@ -65,17 +63,17 @@ func connectServer(clientSettings config.ClientConfig, Logger zerolog.Logger, se
 		Logger.Fatal().Err(err).Str("Connection String", clientSettings.DialAddr).Msg("Failed to Dial Socket address of server")
 	}
 	Logger.Info().Str("Address", clientSettings.DialAddr).Msg("Dial to server opened with no errors")
-	msgStruct := &messaging.BaseMessage{
-		MessageType: "RegisterAgent",
-		messaging.RegisterAgent{
-			AgentHostName: systemInfo.Hostname, 
-			AgentIPAddr: ipAddrGuess.Addr, 
-			AgentJoinDate: time.Now()
-		}
 
+	msgStruct := messaging.BaseMessage{
+		MessageType: "RegisterAgent",
+		MessageBody: messaging.RegisterAgent{
+			AgentHostName: systemInfo.Hostname,
+			AgentIPAddr:   ipAddrGuess.Addr,
+			AgentJoinDate: time.Now(),
+		},
 	}
 	b := messaging.MessageEncode(msgStruct)
-	err = sock.Send(b.Bytes())
+	err = sock.Send(b)
 	if err != nil {
 		Logger.Fatal().Err(err).Str("Connection String", clientSettings.DialAddr).Msg("Failed to send message to server")
 	}
